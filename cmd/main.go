@@ -1,12 +1,13 @@
 package main
 
 import (
-	"ac/internal/role/manager"
+	"fmt"
 	"os"
 )
 
 func main() {
-	dir := "workdir"
+	dir := os.Args[1]
+	fmt.Println("Setting up project directory:", dir)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.Mkdir(dir, 0755); err != nil {
 			panic(err)
@@ -16,5 +17,6 @@ func main() {
 		panic(err)
 	}
 
-	manager.A()
+
+	Run()
 }
