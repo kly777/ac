@@ -10,6 +10,7 @@ import (
 	"ac/internal/taskManager"
 	"ac/internal/websocket"
 	"context"
+	"encoding/json"
 	"net/http"
 )
 
@@ -20,18 +21,57 @@ func Run() {
 
 	// 创建HTTP路由
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		// 设置CORS头
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET")
 		websocket.ServeWS(wsHub, w, r)
 	})
-	
+	informer := informer.NewInformer(wsHub)
+	// 添加接收前端信息的接口
+	http.HandleFunc("/add-info", func(w http.ResponseWriter, r *http.Request) {
+		// 设置CORS头
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// 处理OPTIONS预检请求
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		type InfoRequest struct {
+			Title   string `json:"title"`
+			Content string `json:"content"`
+		}
+
+		var req InfoRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// 添加到informer
+		informer.Add(*info.NewInfo(req.Title, req.Content))
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Info added successfully"))
+	})
+
 	// 启动HTTP服务器
 	go func() {
 		if err := http.ListenAndServe(":8080", nil); err != nil {
-			panic("WebSocket server failed: " + err.Error())
+			panic("HTTP server failed: " + err.Error())
 		}
 	}()
 
 	// 原有业务逻辑
-	informer := informer.NewInformer(wsHub)
+
 	informer.Add(*info.NewInfo("用户输入", "用go写一个控制台累加器"))
 	taskManager := taskManager.NewTaskManager()
 	managerAI := ai.NewAIClient(system_prompt, wsHub)
@@ -39,8 +79,8 @@ func Run() {
 	executor := executor.NewExecutor(taskManager)
 	manager := manager.NewManager(informer, managerAI, executor, managerParser, wsHub)
 	ctx := context.Background()
-	go func(){
-		err:= manager.Run(ctx)
+	go func() {
+		err := manager.Run(ctx)
 		if err != nil {
 			panic(err)
 		}
