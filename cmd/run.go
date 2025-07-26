@@ -1,24 +1,43 @@
 package main
 
 import (
-	"ac/internal/api"
+	"ac/internal/ai"
 	"ac/internal/executor"
 	"ac/internal/info"
 	"ac/internal/informer"
 	"ac/internal/parser"
 	"ac/internal/role/manager"
 	"ac/internal/taskManager"
+	"ac/internal/websocket"
 	"context"
+	"net/http"
 )
 
 func Run() {
-	informer := informer.NewInformer()
+	// 创建WebSocket Hub
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+
+	// 创建HTTP路由
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWS(wsHub, w, r)
+	})
+	
+	// 启动HTTP服务器
+	go func() {
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			panic("WebSocket server failed: " + err.Error())
+		}
+	}()
+
+	// 原有业务逻辑
+	informer := informer.NewInformer(wsHub)
 	informer.Add(*info.NewInfo("用户输入", "用go写一个控制台累加器"))
 	taskManager := taskManager.NewTaskManager()
-	managerAI := api.NewAIClient(system_prompt)
+	managerAI := ai.NewAIClient(system_prompt, wsHub)
 	managerParser := parser.NewParser()
 	executor := executor.NewExecutor(taskManager)
-	manager := manager.NewManager(informer, managerAI, executor, managerParser)
+	manager := manager.NewManager(informer, managerAI, executor, managerParser, wsHub)
 	ctx := context.Background()
 	go func(){
 		err:= manager.Run(ctx)

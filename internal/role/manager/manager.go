@@ -3,8 +3,10 @@ package manager
 import (
 	"ac/internal/command"
 	"ac/internal/info"
+	"ac/internal/websocket"
 	"bufio"
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"strings"
@@ -38,12 +40,13 @@ type manager struct {
 	aiClient ai
 	executor executor
 	parser   parser
+	hub      *websocket.Hub
 
 	streamReader *bufio.Reader  // 流式数据读取器
 	streamWriter *io.PipeWriter // 流式数据写入端
 }
 
-func NewManager(inf informer, ai ai, exec executor, p parser) *manager {
+func NewManager(inf informer, ai ai, exec executor, p parser, hub *websocket.Hub) *manager {
 	// 创建管道：写入端 pw 用于接收流式输出，读取端 pr 用于实时解析
 	pr, pw := io.Pipe()
 	return &manager{
@@ -51,6 +54,7 @@ func NewManager(inf informer, ai ai, exec executor, p parser) *manager {
 		aiClient:     ai,
 		executor:     exec,
 		parser:       p,
+		hub:          hub,
 		streamReader: bufio.NewReader(pr),
 		streamWriter: pw,
 	}
@@ -121,11 +125,18 @@ func (m *manager) startStreamingParser() {
 			log.Println("解析到指令:", cmds)
 		}
 
-		// 执行命令
+		// 执行命令并广播
 		for _, cmd := range cmds {
 			if err := m.executor.Execute(cmd); err != nil {
 				log.Printf("执行指令失败: %v", err)
 			}
+			
+			// 广播命令
+			jsonData, _ := json.Marshal(map[string]interface{}{
+				"type": "managerCommand",
+				"data": cmd,
+			})
+			m.hub.Broadcast(jsonData)
 		}
 	}
 }

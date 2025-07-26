@@ -29,12 +29,12 @@ func (p *Parser) ParseLine(line string) ([]command.Cmd, error) {
 	// 2. 识别指令类型
 	switch {
 	case strings.HasPrefix(cmdContent, cmdTaskPrefix):
-		return []command.Cmd{command.Cmd{
+		return []command.Cmd{{
 			Type: command.CmdTypeTask,
 			Args: strings.TrimPrefix(cmdContent, cmdTaskPrefix),
 		}}, nil
 	case strings.HasPrefix(cmdContent, cmdRunPrefix):
-		return []command.Cmd{command.Cmd{
+		return []command.Cmd{{
 			Type: command.CmdTypeRun,
 			Args: strings.TrimPrefix(cmdContent, cmdRunPrefix),
 		}}, nil
