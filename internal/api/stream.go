@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -33,6 +34,10 @@ func StreamChatCompletion(ctx context.Context, systemMessage, userMessage string
 		default:
 			response, err := stream.Recv()
 			if err != nil {
+				if err == io.EOF {
+					log.Println("流式响应正常结束")
+					return nil
+				}
 				return fmt.Errorf("接收流式响应失败: %w", err)
 			}
 			// 将响应内容写入输出（如控制台、WebSocket、HTTP Response）

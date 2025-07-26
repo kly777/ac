@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+
 	"os"
 )
 
 func main() {
-	dir := os.Args[1]
+	dir := "workdir"
 	fmt.Println("Setting up project directory:", dir)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.Mkdir(dir, 0755); err != nil {
@@ -16,7 +17,6 @@ func main() {
 	if err := os.Chdir(dir); err != nil {
 		panic(err)
 	}
-
 
 	Run()
 }

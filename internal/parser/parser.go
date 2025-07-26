@@ -1,11 +1,17 @@
 package parser
 
-import "context"
+import "ac/internal/command"
 
-type Parser interface {
-	Parse(response string) ([]Command, error)
+type Parser struct{}
+
+func NewParser() *Parser {
+	return &Parser{}
 }
 
-type Command interface {
-	Execute(ctx context.Context) (Cmd string, Result string, err error)
+func (p *Parser) Parse(response string) ([]command.Cmd, error) {
+	return []command.Cmd{}, nil
+}
+
+func (p *Parser) ParseLine(line string) ([]command.Cmd, error) {
+	return []command.Cmd{}, nil
 }
