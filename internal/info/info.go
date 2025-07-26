@@ -15,5 +15,5 @@ func NewInfo(from, content string) *Info {
 }
 
 func (i *Info) Format() string {
-	return fmt.Sprintf(`From:%s,Content:%s`, i.from, "\n"+i.content)
+	return fmt.Sprintf(`From:%s,Content:%s`, i.from, i.content)
 }

@@ -5,9 +5,9 @@ import (
 	"ac/internal/info"
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -64,26 +64,33 @@ func (m *manager) Run(ctx context.Context) error {
 		default:
 			// 1. 获取用户输入
 			infos := m.informer.Get()
-			fmt.Println("获取到的用户输入:", infos)
+			log.Println("获取到的用户输入:", infos)
 			input := m.informer.Format(infos)
 			m.informer.Clear()
-			fmt.Println("格式化后的输入:", input)
+
 			if len(input) == 0 {
 				log.Println("没有用户输入，等待下一次循环")
 				time.Sleep(time.Second)
 				continue
 			}
+			log.Println("格式化后的输入:", input)
+
+			pr, pw := io.Pipe()
+			m.streamReader = bufio.NewReader(pr)
+			m.streamWriter = pw
 
 			// 2. 启动解析协程（实时解析流式输出）
 			go m.startStreamingParser()
 
 			// 3. 执行流式请求（数据写入管道）
+			log.Println("开始执行流式请求")
 			err := m.aiClient.StreamQuery(input, m.streamWriter)
 			if err != nil {
 				m.streamWriter.CloseWithError(err) // 通知解析协程异常
 				log.Printf("AI 流式请求失败: %v", err)
 				continue
 			}
+			log.Println("AI 流式请求完成")
 		}
 	}
 }
@@ -101,10 +108,17 @@ func (m *manager) startStreamingParser() {
 		}
 
 		// 解析单行内容
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		log.Println("输出:", line)
 		cmds, err := m.parser.ParseLine(line)
 		if err != nil {
 			log.Printf("解析指令失败: %v", err)
 			continue
+		}
+		if len(cmds) != 0 {
+			log.Println("解析到指令:", cmds)
 		}
 
 		// 执行命令
