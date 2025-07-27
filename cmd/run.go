@@ -20,6 +20,9 @@ func Run() {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
+	// 创建广播器
+	broadcaster := websocket.NewHubBroadcaster(wsHub)
+
 	// 创建HTTP路由
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		// 设置CORS头（修复）
@@ -84,7 +87,7 @@ func Run() {
 	}()
 
 	taskManager := taskManager.NewTaskManager()
-	managerAI := ai.NewAIClient(system_prompt, wsHub)
+	managerAI := ai.NewAIClient(system_prompt, broadcaster)
 	managerParser := parser.NewParser()
 	executor := executor.NewExecutor(taskManager)
 	manager := manager.NewManager(informer, managerAI, executor, managerParser, wsHub)

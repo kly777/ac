@@ -3,35 +3,34 @@ package ai
 import (
 	"ac/internal/websocket"
 	"context"
-	"encoding/json"
 	"io"
 )
 
 type AIClient struct {
 	system_prompt string
-	hub           *websocket.Hub
+	broadcaster   websocket.Broadcaster
 }
 
-func NewAIClient(system_prompt string, hub *websocket.Hub) *AIClient {
+func NewAIClient(system_prompt string, broadcaster websocket.Broadcaster) *AIClient {
 	return &AIClient{
 		system_prompt: system_prompt,
-		hub:           hub,
+		broadcaster:   broadcaster,
 	}
 }
 
 func (c *AIClient) StreamQuery(userMessage string, writer io.Writer) error {
 	// 创建自定义writer同时写入原始writer和广播到WebSocket
 	broadcastWriter := &broadcastWriter{
-		writer: writer,
-		hub:    c.hub,
+		writer:      writer,
+		broadcaster: c.broadcaster,
 	}
 
 	return StreamChatCompletion(context.Background(), c.system_prompt, userMessage, broadcastWriter)
 }
 
 type broadcastWriter struct {
-	writer io.Writer
-	hub    *websocket.Hub
+	writer      io.Writer
+	broadcaster websocket.Broadcaster
 }
 
 func (bw *broadcastWriter) Write(p []byte) (n int, err error) {
@@ -42,11 +41,7 @@ func (bw *broadcastWriter) Write(p []byte) (n int, err error) {
 	}
 
 	// 广播到WebSocket
-	jsonData, _ := json.Marshal(map[string]any{
-		"type": "ai_response",
-		"data": string(p),
-	})
-	bw.hub.Broadcast(jsonData)
+	bw.broadcaster.Broadcast(websocket.MessageTypeAIResponse, string(p))
 
 	return n, nil
 }

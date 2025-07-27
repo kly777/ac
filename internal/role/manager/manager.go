@@ -130,7 +130,7 @@ func (m *manager) startStreamingParser() {
 			if err := m.executor.Execute(cmd); err != nil {
 				log.Printf("执行指令失败: %v", err)
 			}
-			
+
 			// 广播命令
 			jsonData, _ := json.Marshal(map[string]interface{}{
 				"type": "managerCommand",
