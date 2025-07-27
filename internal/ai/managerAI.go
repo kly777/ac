@@ -43,7 +43,7 @@ func (bw *broadcastWriter) Write(p []byte) (n int, err error) {
 
 	// 广播到WebSocket
 	jsonData, _ := json.Marshal(map[string]any{
-		"type": "AIResponse",
+		"type": "ai_response",
 		"data": string(p),
 	})
 	bw.hub.Broadcast(jsonData)

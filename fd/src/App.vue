@@ -4,10 +4,6 @@ import RealTimeData from './components/RealTimeData.vue'
 import ConnectionStatus from './components/ConnectionStatus.vue'
 import AIResponse from './components/AIResponse.vue'
 import wsService from './services/websocket.service'
-
-onMounted(() => {
-  wsService.connect()
-})
 </script>
 
 <template>

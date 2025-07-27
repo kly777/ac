@@ -5,18 +5,20 @@
  * @param data 请求数据
  * @returns 响应数据
  */
+// 基础URL配置
+const BASE_URL = 'http://localhost:8080';
+
 export async function request(
-    url: string,
+    endpoint: string,
     method: string = "GET",
     data: any = null
-) {
+): Promise<string> {
+    const url = `${BASE_URL}${endpoint}`;
     const options: RequestInit = {
         method,
         headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        credentials: "include", // 包含cookies
+            "Content-Type": "application/json"
+        }
     };
 
     if (data) {
@@ -30,7 +32,7 @@ export async function request(
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        return await response.text();
     } catch (error) {
         console.error("Request failed:", error);
         throw error;

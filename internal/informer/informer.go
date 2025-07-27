@@ -23,9 +23,9 @@ func (i *Informer) Get() []info.Info {
 
 func (i *Informer) Add(info info.Info) {
 	i.Infos = append(i.Infos, info)
-	
+
 	// 广播新添加的信息
-	jsonData, _ := json.Marshal(map[string]interface{}{
+	jsonData, _ := json.Marshal(map[string]any{
 		"type": "informer",
 		"data": info,
 	})

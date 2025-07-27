@@ -32,6 +32,7 @@ func Run() {
 	// 添加接收前端信息的接口
 	http.HandleFunc("/q", func(w http.ResponseWriter, r *http.Request) {
 		// 设置CORS头（修复）
+		log.Println("接收到前端信息")
 
 		origin := r.Header.Get("Origin")
 
@@ -43,9 +44,9 @@ func Run() {
 			return
 		}
 
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		log.Println("Received request")
 		// 处理OPTIONS预检请求
 		if r.Method == "OPTIONS" {
@@ -82,9 +83,6 @@ func Run() {
 		}
 	}()
 
-	// 原有业务逻辑
-
-	informer.Add(*info.NewInfo("用户输入", "用go写一个控制台累加器"))
 	taskManager := taskManager.NewTaskManager()
 	managerAI := ai.NewAIClient(system_prompt, wsHub)
 	managerParser := parser.NewParser()

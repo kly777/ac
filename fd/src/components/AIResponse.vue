@@ -2,8 +2,10 @@
   <div class="ai-response">
     <h2>Chat</h2>
 
-    <div class="response-container">
-      <div class="answer">{{ response }}</div>
+    <div class="chat-container">
+      <div v-for="(message, index) in messages" :key="index" :class="message.role">
+        <strong>{{ message.role === 'user' ? '我' : 'AI' }}:</strong> {{ message.content }}
+      </div>
     </div>
 
     <div class="input">
@@ -17,16 +19,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { request } from '@/services/http.service'
+import { ref, onMounted } from 'vue'
+import { Q } from '@/services/api.service'
+import { onAIResponse } from '@/services/ws-events.service'
 
 
 
-const response = ref("")
-const currentQuestion = ref('')
-const isSending = ref(false)
-const error = ref('')
+interface Message {
+  role: 'user' | 'ai';
+  content: string;
+}
 
+const messages = ref<Message[]>([]);
+const currentQuestion = ref('');
+const isSending = ref(false);
+const error = ref('');
+
+
+onMounted(() => {
+  onAIResponse((content) => {
+    console.log('AI Response:', content);
+    if(content.status==="done"){
+    }else if(content.status==="ing"){
+      messages.value[messages.value.length-1].content+=content.content;
+    }
+
+  });
+});
 
 const sendQuestion = async () => {
   if (!currentQuestion.value.trim()) return;
@@ -34,8 +53,15 @@ const sendQuestion = async () => {
   isSending.value = true;
   error.value = '';
 
+  // 添加用户消息
+  messages.value.push({
+    role: 'user',
+    content: currentQuestion.value
+  });
+
   try {
-    await request('http://localhost:8080/q', 'POST', { content: currentQuestion.value })
+    // 使用封装的Q方法发送问题
+    await Q(currentQuestion.value);
     currentQuestion.value = '';
   } catch (err) {
     error.value = '发送失败: ' + (err as Error).message;
@@ -71,9 +97,25 @@ const sendQuestion = async () => {
   color: #333;
 }
 
-.answer {
-  padding-left: 15px;
-  color: #666;
+.chat-container {
+  height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+}
+
+.user {
+  text-align: right;
+  color: #2c6bed;
+  margin-bottom: 8px;
+}
+
+.ai {
+  text-align: left;
+  color: #333;
+  margin-bottom: 8px;
 }
 
 .input {

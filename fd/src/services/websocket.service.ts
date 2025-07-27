@@ -1,4 +1,11 @@
-import { ref, watch } from "vue";
+import { ref } from "vue";
+import type { AppMessageType } from "@/types";
+
+// WebSocket事件监听器类型
+type EventListener = (data: any) => void;
+
+// 连接状态类型
+type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
 // WebSocket服务类
 class WebSocketService {
@@ -7,32 +14,43 @@ class WebSocketService {
     private maxReconnectAttempts = 5;
     private reconnectInterval = 3000; // 3秒重连间隔
     private url: string;
+    private eventListeners: Map<AppMessageType, EventListener[]> = new Map();
 
     // 状态
     isConnected = ref(false);
-    messages = ref<any[]>([]);
-    connectionStatus = ref('disconnected'); // 连接状态: 'connecting', 'connected', 'disconnected'
+    connectionStatus = ref<ConnectionStatus>("disconnected");
 
     constructor(url: string) {
         this.url = url;
+        this.connect(); // 在构造时自动连接
     }
 
     // 连接WebSocket
-    connect(): void {
-        this.connectionStatus.value = 'connecting';
+    private connect(): void {
+        this.connectionStatus.value = "connecting";
         this.socket = new WebSocket(this.url);
 
         this.socket.onopen = () => {
             this.isConnected.value = true;
             this.reconnectAttempts = 0;
-            this.connectionStatus.value = 'connected';
+            this.connectionStatus.value = "connected";
             console.log("WebSocket连接已建立");
         };
 
         this.socket.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data);
-                this.messages.value.push(data);
+                const message: { type: AppMessageType; data: any } = JSON.parse(
+                    event.data
+                );
+                console.log("收到WebSocket消息：", message);
+
+                // 按消息类型分发事件
+                if (message.type && this.eventListeners.has(message.type)) {
+                    console.log("分发事件：", message.type);
+                    const listeners =
+                        this.eventListeners.get(message.type) || [];
+                    listeners.forEach((listener) => listener(message.data));
+                }
             } catch (error) {
                 console.error("解析WebSocket消息失败:", error);
             }
@@ -40,11 +58,12 @@ class WebSocketService {
 
         this.socket.onerror = (error) => {
             console.error("WebSocket错误:", error);
+            this.connectionStatus.value = "error";
         };
 
         this.socket.onclose = () => {
             this.isConnected.value = false;
-            this.connectionStatus.value = 'disconnected';
+            this.connectionStatus.value = "disconnected";
             console.log("WebSocket连接已关闭");
 
             // 自动重连逻辑
@@ -61,7 +80,7 @@ class WebSocketService {
     }
 
     // 发送消息
-    send(message: any): void {
+    send(message: { type: AppMessageType; data: any }): void {
         if (this.isConnected.value && this.socket) {
             this.socket.send(JSON.stringify(message));
         } else {
@@ -77,25 +96,27 @@ class WebSocketService {
         }
     }
 
-    // 监听特定类型消息
-    onMessageType(type: string, callback: (data: any) => void): void {
-        const unwatch = watch(
-            this.messages,
-            () => {
-                const newMessages = this.messages.value.filter(
-                    (msg) => msg.type === type
-                );
-                newMessages.forEach((msg) => callback(msg.data));
-                // 移除已处理的消息
-                this.messages.value = this.messages.value.filter(
-                    (msg) => !newMessages.includes(msg)
-                );
-            },
-            { deep: true }
-        );
+    // 注册事件监听器
+    on(type: AppMessageType, callback: EventListener): void {
+        if (!this.eventListeners.has(type)) {
+            this.eventListeners.set(type, []);
+        }
+        this.eventListeners.get(type)?.push(callback);
     }
+
+    // 移除事件监听器
+    off(type: AppMessageType, callback: EventListener): void {
+        const listeners = this.eventListeners.get(type);
+        if (listeners) {
+            const index = listeners.indexOf(callback);
+            if (index !== -1) {
+                listeners.splice(index, 1);
+            }
+        }
+    }
+
     // 获取当前连接状态
-    getStatus() {
+    getStatus(): ConnectionStatus {
         return this.connectionStatus.value;
     }
 }

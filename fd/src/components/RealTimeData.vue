@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import wsService from '../services/websocket.service.ts'
+import * as wsEvents from '../services/ws-events.service'
 
 // 定义数据类型
 interface InformerItem {
@@ -46,27 +46,31 @@ const managerAIOutput = ref('')
 const managerCommands = ref<ManagerCommand[]>([])
 const newInfo = ref<NewInfo>({ title: '', content: '' })
 
+// 事件处理函数
+const handleInformer = (data: any) => {
+  informerData.value.push(data)
+}
+
+const handleManagerAI = (data: any) => {
+  managerAIOutput.value += data
+}
+
+const handleManagerCommand = (data: any) => {
+  managerCommands.value.push({
+    type: data.Type,
+    content: data.Content
+  })
+}
+
 onMounted(() => {
-  // 连接WebSocket
-  wsService.connect()
+  // 注册事件监听
+  wsEvents.onRealTimeData(handleInformer) // 使用实时数据通道传递informer消息
+  // 注意：managerAI和managerCommand需要后端实现对应消息类型
+})
 
-  // 监听informer消息
-  wsService.onMessageType('informer', (data: any) => {
-    informerData.value.push(data)
-  })
-
-  // 监听managerAI消息
-  wsService.onMessageType('managerAI', (data: any) => {
-    managerAIOutput.value += data
-  })
-
-  // 监听manager命令
-  wsService.onMessageType('managerCommand', (data: any) => {
-    managerCommands.value.push({
-      type: data.Type,
-      content: data.Content
-    })
-  })
+onBeforeUnmount(() => {
+  // 注销事件监听
+  wsEvents.offRealTimeData(handleInformer)
 })
 
 // 添加自定义信息
@@ -97,10 +101,6 @@ const addCustomInfo = async () => {
   }
 }
 
-onBeforeUnmount(() => {
-  // 断开WebSocket连接
-  wsService.disconnect()
-})
 </script>
 
 <style scoped>
