@@ -11,6 +11,7 @@ import (
 	"ac/internal/websocket"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -21,19 +22,31 @@ func Run() {
 
 	// 创建HTTP路由
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// 设置CORS头
+		// 设置CORS头（修复）
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		websocket.ServeWS(wsHub, w, r)
 	})
 	informer := informer.NewInformer(wsHub)
 	// 添加接收前端信息的接口
-	http.HandleFunc("/add-info", func(w http.ResponseWriter, r *http.Request) {
-		// 设置CORS头
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	http.HandleFunc("/q", func(w http.ResponseWriter, r *http.Request) {
+		// 设置CORS头（修复）
 
+		origin := r.Header.Get("Origin")
+
+		allowedOrigin := "http://localhost:5173" // 前端开发服务器地址
+		if origin == allowedOrigin {
+			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		} else {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+		log.Println("Received request")
 		// 处理OPTIONS预检请求
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -46,7 +59,6 @@ func Run() {
 		}
 
 		type InfoRequest struct {
-			Title   string `json:"title"`
 			Content string `json:"content"`
 		}
 
@@ -57,7 +69,7 @@ func Run() {
 		}
 
 		// 添加到informer
-		informer.Add(*info.NewInfo(req.Title, req.Content))
+		informer.Add(*info.NewInfo("USER", req.Content))
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Info added successfully"))

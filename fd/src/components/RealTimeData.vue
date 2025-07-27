@@ -1,22 +1,6 @@
 <template>
   <div class="real-time-data">
     <h2>实时数据</h2>
-    
-    <div class="add-info-form">
-      <h3>添加自定义信息</h3>
-      <form @submit.prevent="addCustomInfo">
-        <div class="form-group">
-          <label for="title">标题:</label>
-          <input type="text" id="title" v-model="newInfo.title" required>
-        </div>
-        <div class="form-group">
-          <label for="content">内容:</label>
-          <textarea id="content" v-model="newInfo.content" required></textarea>
-        </div>
-        <button type="submit">提交</button>
-      </form>
-    </div>
-
     <div class="data-section">
       <h3>Informer内容</h3>
       <ul>
@@ -25,12 +9,6 @@
         </li>
       </ul>
     </div>
-
-    <div class="data-section">
-      <h3>ManagerAI输出</h3>
-      <div class="output">{{ managerAIOutput }}</div>
-    </div>
-
     <div class="data-section">
       <h3>Manager命令</h3>
       <ul>
@@ -44,11 +22,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-
-interface NewInfo {
-  title: string
-  content: string
-}
+import wsService from '../services/websocket.service.ts'
 
 // 定义数据类型
 interface InformerItem {
@@ -61,58 +35,38 @@ interface ManagerCommand {
   content: string
 }
 
+interface NewInfo {
+  title: string
+  content: string
+}
+
 // 响应式数据
 const informerData = ref<InformerItem[]>([])
 const managerAIOutput = ref('')
 const managerCommands = ref<ManagerCommand[]>([])
-
-// 新信息表单
 const newInfo = ref<NewInfo>({ title: '', content: '' })
 
-// WebSocket连接
-let socket: WebSocket | null = null
-
 onMounted(() => {
-  // 建立WebSocket连接
-  socket = new WebSocket('ws://localhost:8080/ws')
-  if (socket===null) {
-    console.log('WebSocket连接失败')
-  }
+  // 连接WebSocket
+  wsService.connect()
 
-  socket.onopen = () => {
-    console.log('WebSocket连接已建立')
-  }
+  // 监听informer消息
+  wsService.onMessageType('informer', (data: any) => {
+    informerData.value.push(data)
+  })
 
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
+  // 监听managerAI消息
+  wsService.onMessageType('managerAI', (data: any) => {
+    managerAIOutput.value += data
+  })
 
-      switch (data.type) {
-        case 'informer':
-          informerData.value.push(data.data)
-          break
-        case 'managerAI':
-          managerAIOutput.value += data.data
-          break
-        case 'managerCommand':
-          managerCommands.value.push({
-            type: data.data.Type,
-            content: data.data.Content
-          })
-          break
-      }
-    } catch (e) {
-      console.error('解析WebSocket数据失败:', e)
-    }
-  }
-
-  socket.onerror = (error) => {
-    console.error('WebSocket错误:', error)
-  }
-
-  socket.onclose = () => {
-    console.log('WebSocket连接已关闭')
-  }
+  // 监听manager命令
+  wsService.onMessageType('managerCommand', (data: any) => {
+    managerCommands.value.push({
+      type: data.Type,
+      content: data.Content
+    })
+  })
 })
 
 // 添加自定义信息
@@ -128,11 +82,11 @@ const addCustomInfo = async () => {
         content: newInfo.value.content
       })
     })
-    
+
     if (!response.ok) {
       throw new Error(`请求失败: ${response.status}`)
     }
-    
+
     // 清空表单
     newInfo.value = { title: '', content: '' }
     alert('信息添加成功！')
@@ -144,9 +98,8 @@ const addCustomInfo = async () => {
 }
 
 onBeforeUnmount(() => {
-  if (socket) {
-    socket.close()
-  }
+  // 断开WebSocket连接
+  wsService.disconnect()
 })
 </script>
 
@@ -174,7 +127,8 @@ label {
   font-weight: bold;
 }
 
-input, textarea {
+input,
+textarea {
   width: 100%;
   padding: 8px;
   border: 1px solid #ccc;

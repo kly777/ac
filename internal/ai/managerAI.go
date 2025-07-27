@@ -1,10 +1,10 @@
 package ai
 
 import (
-	"context"
-	"io"
 	"ac/internal/websocket"
+	"context"
 	"encoding/json"
+	"io"
 )
 
 type AIClient struct {
@@ -25,7 +25,7 @@ func (c *AIClient) StreamQuery(userMessage string, writer io.Writer) error {
 		writer: writer,
 		hub:    c.hub,
 	}
-	
+
 	return StreamChatCompletion(context.Background(), c.system_prompt, userMessage, broadcastWriter)
 }
 
@@ -40,13 +40,13 @@ func (bw *broadcastWriter) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
-	
+
 	// 广播到WebSocket
-	jsonData, _ := json.Marshal(map[string]interface{}{
-		"type": "managerAI",
+	jsonData, _ := json.Marshal(map[string]any{
+		"type": "AIResponse",
 		"data": string(p),
 	})
 	bw.hub.Broadcast(jsonData)
-	
+
 	return n, nil
 }
